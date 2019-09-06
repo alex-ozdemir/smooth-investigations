@@ -1,5 +1,6 @@
 gmp*
 fastgcd
+.ccls-cache
 **/gcds*
 **/vulnerable_moduli
 **/*.mpz

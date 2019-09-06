@@ -28,7 +28,7 @@
 #include <pthread.h>
 #include <gmp.h>
 
-#define NTHREADS 4 // Get from compile-time argument?
+#define NTHREADS 32 // Get from compile-time argument?
 
 #ifdef mpz_raw_64 // if patched gmp, use large format int i/o
 #define __mpz_inp_raw mpz_inp_raw_64
