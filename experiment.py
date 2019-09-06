@@ -8,7 +8,7 @@ import statistics
 DATA_DIR = 'data'
 SEED_LEN = 128
 MAX_LEN = 2048
-N = 10000
+N = 1000000
 B_VALUES = list(range(SEED_LEN, MAX_LEN + 1, SEED_LEN))
 GEN_PGM = './gen/target/release/gen'
 GCD_PGM = './fastgcd'
@@ -33,8 +33,9 @@ def analyze(directory):
     return ( statistics.mean(bitlengths), statistics.stdev(bitlengths), max(bitlengths) )
 
 with open(OUT, 'w') as of:
-    for (name, args) in rngs:
-        for b in B_VALUES:
+    of.write('name\tb\ts\tmean\tstdev\tmax\n')
+    for b in B_VALUES:
+        for (name, args) in rngs:
             d = f'{DATA_DIR}/{name}/{b}'
             infile = f'{d}/input.txt'
             os.makedirs(d, exist_ok = True)
@@ -43,4 +44,5 @@ with open(OUT, 'w') as of:
             sub.run([f'../../../{GCD_PGM}', 'input.txt'], cwd=d)
             mean, stdev, max_ = analyze(d)
             of.write(f'{name}\t{b}\t{SEED_LEN}\t{mean}\t{stdev}\t{max_}\n')
+            of.flush()
 
