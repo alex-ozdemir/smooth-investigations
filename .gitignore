@@ -3,3 +3,6 @@ fastgcd
 **/gcds*
 **/vulnerable_moduli
 **/*.mpz
+gen/target
+gen/Cargo.lock
+
