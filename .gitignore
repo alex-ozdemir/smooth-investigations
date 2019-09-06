@@ -1,4 +1,6 @@
 gmp*
+data
+**/.*.swp
 fastgcd
 .ccls-cache
 **/gcds*
