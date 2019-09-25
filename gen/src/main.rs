@@ -7,6 +7,7 @@ use clap::{App, Arg, SubCommand};
 use num_bigint::{BigUint, RandomBits};
 use num_traits::One;
 use rand::Rng;
+use rand::ThreadRng;
 
 use std::cmp::min;
 use std::collections::HashSet;
@@ -56,7 +57,7 @@ struct UniformGen<R> {
     rng: R,
 }
 
-impl UniformGen<rand::rngs::ThreadRng> {
+impl UniformGen<ThreadRng> {
     fn new(bits: usize) -> Self {
         Self {
             bits: bits,
@@ -78,13 +79,34 @@ struct PermutationGen<R, P> {
     permutation: P,
 }
 
-impl<P> PermutationGen<rand::rngs::ThreadRng, P> {
+impl<P> PermutationGen<ThreadRng, P> {
     fn new(bits: usize, seed_bits: usize, permutation: P) -> Self {
         Self {
             bits,
             seed: UniformGen::new(seed_bits),
             permutation,
         }
+    }
+}
+
+struct PlusPrimeGen<R> {
+    prime: BigUint,
+    seed: UniformGen<R>,
+}
+
+impl PlusPrimeGen<ThreadRng> {
+    fn new(prime: BigUint, seed_bits: usize) -> Self {
+        Self {
+            prime,
+            seed: UniformGen::new(seed_bits),
+        }
+    }
+}
+
+impl<R: Rng> Gen for PlusPrimeGen<R> {
+    fn next(&mut self) -> BigUint {
+        let seed = self.seed.next();
+        seed + &self.prime
     }
 }
 
@@ -108,6 +130,49 @@ impl<R: Rng, P: Permutation> Gen for PermutationGen<R, P> {
     }
 }
 
+//trait ChunkPermutation {
+//    fn permute(&self, int: &BigUint, n_bits: usize) -> BigUint;
+//}
+//
+//struct ChunkedPermutationGen<R, P> {
+//    bits: usize,
+//    chunk_width: usize,
+//    seed: UniformGen<R>,
+//    permutation: P,
+//}
+//
+//impl<P> ChunkedPermutationGen<rand::rngs::ThreadRng, P> {
+//    fn new(bits: usize, seed_bits: usize, chunk_width: usize, permutation: P) -> Self {
+//        assert!(bits % chunk_width == 0);
+//        Self {
+//            bits,
+//            chunk_width,
+//            seed: UniformGen::new(seed_bits),
+//            permutation,
+//        }
+//    }
+//}
+//
+//impl<R: Rng, P: ChunkPermutation> Gen for ChunkedPermutationGen<R, P> {
+//    fn next(&mut self) -> BigUint {
+//        let mut acc = self.seed.next();
+//        let mut last = acc.clone();
+//        let mut n_bits_left = self.bits - self.seed.bits;
+//        while n_bits_left > 0 {
+//            let n_bits_this_chunk = min(self.seed.bits, n_bits_left);
+//            n_bits_left -= n_bits_this_chunk;
+//            last = P::permute(&self.permutation, &last);
+//            let new = if n_bits_this_chunk < self.seed.bits {
+//                &last & ((BigUint::one() << n_bits_this_chunk) - 1usize)
+//            } else {
+//                last.clone()
+//            };
+//            acc = (acc << n_bits_this_chunk) | new;
+//        }
+//        acc
+//    }
+//}
+
 fn main() {
     let matches = App::new("Non-Smooth Generator")
         .author("Alex Ozdemir")
@@ -127,6 +192,24 @@ fn main() {
                         .required(true)
                         .takes_value(true)
                         .help("the permutation to use: {increment, rotate}"),
+                )
+                .arg(
+                    Arg::with_name("seed-bits")
+                        .short("s")
+                        .required(true)
+                        .takes_value(true)
+                        .help("how many bits to put in the seed"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("plus-prime")
+                .about("generates random numbers using a small uniform seed, plus a prime")
+                .arg(
+                    Arg::with_name("prime")
+                        .short("p")
+                        .required(true)
+                        .takes_value(true)
+                        .help("the prime to add"),
                 )
                 .arg(
                     Arg::with_name("seed-bits")
@@ -160,16 +243,25 @@ fn main() {
     let mut gen: Box<dyn Gen> = match matches.subcommand() {
         ("uniform", Some(_)) => Box::new(UniformGen::new(bits)),
         ("permutation", Some(m)) => {
-            let seed_bits = usize::from_str(m.value_of("seed-bits").unwrap_or("8")).expect("integral seed-bits");
+            let seed_bits = usize::from_str(m.value_of("seed-bits").unwrap_or("8"))
+                .expect("integral seed-bits");
             match m.value_of("permutation").unwrap() {
-                "increment" => {
-                    Box::new(PermutationGen::new(bits, seed_bits, Increment))
-                }
-                "rotate" => {
-                    Box::new(PermutationGen::new(bits, seed_bits, LeftRotate::new(seed_bits, 1)))
-                }
+                "increment" => Box::new(PermutationGen::new(bits, seed_bits, Increment)),
+                "rotate" => Box::new(PermutationGen::new(
+                    bits,
+                    seed_bits,
+                    LeftRotate::new(seed_bits, 1),
+                )),
                 _ => panic!("Expected permutation"),
             }
+        }
+        ("plus-prime", Some(m)) => {
+            let seed_bits = usize::from_str(m.value_of("seed-bits").unwrap_or("8"))
+                .expect("integral seed-bits");
+            let prime = BigUint::from_str(m.value_of("prime").expect("missing prime"))
+                .expect("malformed prime");
+            assert_eq!(bits, prime.bits());
+            Box::new(PlusPrimeGen::new(prime, seed_bits))
         }
         _ => panic!("Unkown subcommand"),
     };
