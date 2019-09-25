@@ -2,6 +2,7 @@ extern crate clap;
 extern crate num_bigint;
 extern crate num_traits;
 extern crate rand;
+extern crate glass_pumpkin;
 
 use clap::{App, Arg, SubCommand};
 use num_bigint::{BigUint, RandomBits};
@@ -95,9 +96,9 @@ struct PlusPrimeGen<R> {
 }
 
 impl PlusPrimeGen<ThreadRng> {
-    fn new(prime: BigUint, seed_bits: usize) -> Self {
+    fn new(bits: usize, seed_bits: usize) -> Self {
         Self {
-            prime,
+            prime: glass_pumpkin::prime::new(bits).expect("failed prime gen"),
             seed: UniformGen::new(seed_bits),
         }
     }
@@ -205,13 +206,6 @@ fn main() {
             SubCommand::with_name("plus-prime")
                 .about("generates random numbers using a small uniform seed, plus a prime")
                 .arg(
-                    Arg::with_name("prime")
-                        .short("p")
-                        .required(true)
-                        .takes_value(true)
-                        .help("the prime to add"),
-                )
-                .arg(
                     Arg::with_name("seed-bits")
                         .short("s")
                         .required(true)
@@ -258,10 +252,7 @@ fn main() {
         ("plus-prime", Some(m)) => {
             let seed_bits = usize::from_str(m.value_of("seed-bits").unwrap_or("8"))
                 .expect("integral seed-bits");
-            let prime = BigUint::from_str(m.value_of("prime").expect("missing prime"))
-                .expect("malformed prime");
-            assert_eq!(bits, prime.bits());
-            Box::new(PlusPrimeGen::new(prime, seed_bits))
+            Box::new(PlusPrimeGen::new(bits, seed_bits))
         }
         _ => panic!("Unkown subcommand"),
     };
