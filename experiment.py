@@ -5,7 +5,7 @@ from os import path
 import subprocess as sub
 import statistics
 
-DATA_DIR = 'data'
+DATA_DIR = 'pp-data'
 SEED_LEN = 128
 MAX_LEN = 2048
 N = 1000000
@@ -15,6 +15,7 @@ GCD_PGM = './fastgcd'
 OUT = 'out.txt'
 
 rngs = [
+    ('plus-prime', ['plus-prime', '-s', f'{SEED_LEN}']),
     ('uniform', ['uniform']),
     ('inc', ['permutation', '-p', 'increment', '-s', f'{SEED_LEN}']),
 ]

@@ -1,5 +1,6 @@
 gmp*
 data
+pp-data
 **/.*.swp
 fastgcd
 .ccls-cache
